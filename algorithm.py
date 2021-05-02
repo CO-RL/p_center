@@ -1,6 +1,6 @@
 from sage.all import *
 import numpy as np
-from generate_graph import random_connected_graph
+# from generate_graph import random_connected_graph
 import random
 
 def clusters(G, centers, weighted=True, as_dict=False):
@@ -41,7 +41,7 @@ def clusters(G, centers, weighted=True, as_dict=False):
             clusts[closest].append(vertex)
         return clusts
 
-g = random_connected_graph(100, 0.4, seed = 2020)
+# g = random_connected_graph(100, 0.4, seed = 2020)
 def convert_to_complete(G, weighted=False):
     '''
     Function that converts graph to complete graph. Edge weights are distances between the vertices.
@@ -120,22 +120,22 @@ def k_center_approximation(G, k=3, weighted=False, seed=None, distance=False):
     else:
         return [vertices[c] for c in C]
 
-if __name__ == '__main__':
-    g = random_connected_graph(12, 0.4, seed=2020)
-    c = clusters(g, k_center_approximation(g, k=9, distance=False), weighted=True, as_dict=True)
-    g.weighted(True)
-
-    centers, dist = k_center(g, k=3, distance=True)
-    p_exact = g.plot(layout='circular', vertex_colors={'red': centers}, vertex_labels=False, edge_labels=True)
-    print("Exact solution")
-    print('Maximum distance to any point:' + str(dist))
-    print('\n')
-    p_exact.show(figsize=15)
-
-    centers, dist = k_center_approximation(g, k=3, distance=True, weighted=True)
-    p_approximate = g.plot(layout='circular', vertex_colors={'red': centers}, vertex_labels=False, edge_labels=True)
-
-    print("K-Center approximation")
-    print('Maximum distance to any point:' + str(dist));
-    print('\n')
-    p_approximate.show(figsize=15)
+# if __name__ == '__main__':
+#     g = random_connected_graph(12, 0.4, seed=2020)
+#     c = clusters(g, k_center_approximation(g, k=9, distance=False), weighted=True, as_dict=True)
+#     g.weighted(True)
+#
+#     centers, dist = k_center(g, k=3, distance=True)
+#     p_exact = g.plot(layout='circular', vertex_colors={'red': centers}, vertex_labels=False, edge_labels=True)
+#     print("Exact solution")
+#     print('Maximum distance to any point:' + str(dist))
+#     print('\n')
+#     p_exact.show(figsize=15)
+#
+#     centers, dist = k_center_approximation(g, k=3, distance=True, weighted=True)
+#     p_approximate = g.plot(layout='circular', vertex_colors={'red': centers}, vertex_labels=False, edge_labels=True)
+#
+#     print("K-Center approximation")
+#     print('Maximum distance to any point:' + str(dist));
+#     print('\n')
+#     p_approximate.show(figsize=15)

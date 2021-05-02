@@ -1,6 +1,11 @@
 from sage.all import *
 import numpy as np
 import torch
+import networkx as nx
+import matplotlib
+from algorithm import k_center
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 def random_connected_graph(n, p, seed=None, weighted=True):
     '''
@@ -36,10 +41,18 @@ def extract_features(G, dim=10, weighted=True):
 if __name__ == '__main__':
     n = 3
     # G = []
-    G = [random_connected_graph(50, 0.4, weighted=True) for _ in range(5)]
+    #生成图片集合
+    G = [random_connected_graph(50, 0.4, weighted=True) for _ in range(1)]
+
+    #画图 计算距离
+    # g = G[0]
+    # g.weighted(True)
+    # centers, dist = k_center(g, k=3, distance=True)
+    # p_exact = g.plot(layout='circular', vertex_colors={'red': centers}, vertex_labels=False, edge_labels=True)
+    # print("Exact solution")
+    # print('Maximum distance to any point:' + str(dist));
+    # print('\n')
+    # p_exact.show(figsize=15)
+
     features = [extract_features(graph, dim=30, weighted=True) for graph in G]
-    print(G)
-    print(features)
-    # for i in range(n):
-    #     g = random_connected_graph(12, 0.4, seed=0)
-    #     print(g)
+    print(G[0])
