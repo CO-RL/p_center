@@ -4,8 +4,9 @@ import torch
 import networkx as nx
 import matplotlib
 from algorithm import k_center
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import pickle
 
 def random_connected_graph(n, p, seed=None, weighted=True):
     '''
@@ -38,12 +39,35 @@ def extract_features(G, dim=10, weighted=True):
             features[j, section] += 1
     return torch.FloatTensor(features)
 
-if __name__ == '__main__':
-    n = 3
-    # G = []
-    #生成图片集合
-    G = [random_connected_graph(50, 0.4, weighted=True) for _ in range(1)]
+def generate_samples(datasize, n ,p, out_dir):
+    print('generating samples...')
+    out_dir = out_dir
+    for i in range (datasize):
+        G = random_connected_graph(n, p, weighted=True)
+        with open(f'{out_dir}/sample_{i+1}.pkl', 'wb') as f:
+            pickle.dump(G, f)
+        f.close()
 
+if __name__ == '__main__':
+    train_size = 10
+    # valid_size = 200
+    # test_size = 200
+    #
+    out_dir = 'data/samples/p_center/train'
+    print(f"{train_size} samples in {out_dir}")
+    os.makedirs(out_dir)
+
+    generate_samples(datasize=train_size, n=30, p=0.4, out_dir=out_dir)
+
+    # G = [random_connected_graph(50, 0.4, weighted=True) for _ in range(1)]
+    #
+    #
+    # with open("./data/sample.pkl", 'wb') as f:
+    #     pickle.dump(G, f)
+    # #
+    # with open('./data/sample.pkl', 'rb') as f:
+    #     K = pickle.load(f)
+    # print(K)
     #画图 计算距离
     # g = G[0]
     # g.weighted(True)
@@ -54,5 +78,5 @@ if __name__ == '__main__':
     # print('\n')
     # p_exact.show(figsize=15)
 
-    features = [extract_features(graph, dim=30, weighted=True) for graph in G]
-    print(G[0])
+    # features = [extract_features(graph, dim=30, weighted=True) for graph in G]
+    # print(G[0])

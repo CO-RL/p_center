@@ -7,11 +7,8 @@ import torch.nn.functional as F
 import numpy as np
 import argparse
 import model
+import pickle
 
-import matplotlib
-# print(matplotlib.get_backend())
-# Force matplotlib to not use any Xwindows backend.
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 def convert_to_DGLGraph(G, k=3, weighted=True):
@@ -68,7 +65,8 @@ if __name__ == '__main__':
 ## Generate graph data and features
     if args.problem == '2center':
         weighted = True
-        G = [random_connected_graph(50, 0.4, weighted=True) for _ in range(3)]
+        with open('./data/sample.pkl', 'rb') as f:
+            G = pickle.load(f)
         features = [extract_features(graph, dim=30, weighted=True) for graph in G]
 
         g = []
@@ -133,12 +131,13 @@ if __name__ == '__main__':
                     losses.append(loss.item())
 
                 print("Epoch {:05d} | Loss {:.4f} | Time(s) {:.4f}".format(
-                    epoch, loss.item(), np.mean(duration)))
+                    epoch*i, loss.item(), np.mean(duration)))
 
-    # plt.plot([*range(len(losses))], losses)
-    # plt.title("Clustering-Based GNN Loss for k=2")
-    # plt.xlabel("Epoch")
-    # plt.ylabel("Loss")
+    plt.plot([*range(len(losses))], losses)
+    plt.title("Clustering-Based GNN Loss for k=2")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.show()
     # out_png1 = './img/loss.png'
     # plt.savefig(out_png1, dpi=150)
 
