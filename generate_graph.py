@@ -49,15 +49,26 @@ def generate_samples(datasize, n ,p, out_dir):
         f.close()
 
 if __name__ == '__main__':
-    train_size = 10
-    # valid_size = 200
-    # test_size = 200
+    train_size = 100
+    valid_size = 20
+    test_size = 20
     #
-    out_dir = 'data/samples/p_center/train'
-    print(f"{train_size} samples in {out_dir}")
-    os.makedirs(out_dir)
+    out_dir = 'data/samples/p_center'
+    train_dir = out_dir + '/train'
+    valid_dir = out_dir + '/valid'
+    test_dir = out_dir + '/test'
+    print(f"{train_size} samples in {train_dir}")
+    print(f"{valid_size} samples in {valid_dir}")
+    print(f"{test_size} samples in {test_dir}")
+    os.makedirs(train_dir)
+    os.makedirs(valid_dir)
+    os.makedirs(test_dir)
 
-    generate_samples(datasize=train_size, n=30, p=0.4, out_dir=out_dir)
+    generate_samples(datasize=train_size, n=50, p=0.4, out_dir=train_dir)
+
+    generate_samples(datasize=valid_size, n=50, p=0.4, out_dir=valid_dir)
+
+    generate_samples(datasize=test_size, n=50, p=0.4, out_dir=test_dir)
 
     # G = [random_connected_graph(50, 0.4, weighted=True) for _ in range(1)]
     #

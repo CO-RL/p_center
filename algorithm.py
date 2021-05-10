@@ -120,8 +120,8 @@ def k_center_approximation(G, k=3, weighted=False, seed=None, distance=False):
     else:
         return [vertices[c] for c in C]
 
-# if __name__ == '__main__':
-#     g = random_connected_graph(12, 0.4, seed=2020)
+if __name__ == '__main__':
+    g = random_connected_graph(50, 0.4, seed=2020)
 #     c = clusters(g, k_center_approximation(g, k=9, distance=False), weighted=True, as_dict=True)
 #     g.weighted(True)
 #

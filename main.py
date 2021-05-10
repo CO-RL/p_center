@@ -65,8 +65,7 @@ if __name__ == '__main__':
 ## Generate graph data and features
     if args.problem == '2center':
         weighted = True
-        with open('./data/sample.pkl', 'rb') as f:
-            G = pickle.load(f)
+        G = [random_connected_graph(30, 0.4, weighted=True) for _ in range(3)]
         features = [extract_features(graph, dim=30, weighted=True) for graph in G]
 
         g = []
@@ -82,7 +81,7 @@ if __name__ == '__main__':
             centers.append(c)
             labels.append(l)
             masks.append(m)
-            clusts.append(torch.LongTensor(clsts))
+clusts.append(torch.LongTensor(clsts))
 
     if args.model == 'GAT':
         net = model.GAT(in_dim=features[0].size()[1],

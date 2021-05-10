@@ -42,16 +42,28 @@ def process(model, dataloader, optimizer=None):
     mean_loss = 0
     mean_acc = np.zeros(1)
     n_samples_processed = len(dataloader)
-
     for batch in dataloader:
+        clusts = []
         G = read_graph(batch)
         feature = extract_features(G, dim=30, weighted=True)
-        g, c, l, m, clsts = convert_to_DGLGraph(G, k=k, weighted=weighted)
-        logits = net(g, feature)
-        logp = F.log_softmax(logits, 1)
-        loss = F.nll_loss(logp, clsts)
+        g, c, l, m, clsts = convert_to_DGLGraph(G, k=k, weighted=True)
+        clusts.append(torch.LongTensor(clsts))
+
+        if optimizer:
+            logits = model(g, feature)
+            logp = F.log_softmax(logits, 1)
+            loss = F.nll_loss(logp, clusts[0])
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+        else:
+            logits = model(g, feature)
+            logp = F.log_softmax(logits, 1)
+            loss = F.nll_loss(logp, clusts[0])
 
         mean_loss += loss
+
         # mean_acc += acc
         # g.append(dgl_graph)
         # centers.append(c)
@@ -138,7 +150,7 @@ if __name__ == '__main__':
     patience = 10
     early_stopping = 20
     best_loss = np.inf
-    logfile = os.path.join('./log.txt')
+    k=2
     # logfile = os.path.join(running_dir, 'log.txt')
     # problem_folder = problem_folder[args.problem]
     # running_dir = f"trained_models/{args.problem}/{args.model}"
@@ -177,22 +189,16 @@ if __name__ == '__main__':
     train_files = [str(x) for x in train_files]
     valid_files = [str(x) for x in valid_files]
 
-    for i in train_files:
-        with open(i, 'rb') as f:
-            G = pickle.load(f)
-            print(G)
-    #how to load data?
-
 
     ### MODEL LOADING ###
     # sys.path.insert(0, os.path.abspath(f'models/{args.model}'))
-    net = model.GAT(in_dim=features[0].size()[1],
+    net = model.GAT(in_dim=30,
                     hidden_dim=k * 2,
                     out_dim=2,
                     num_heads=5)
 
     ### TRAINING LOOP ###
-    optimizer = tf.train.AdamOptimizer(learning_rate=lambda: lr)
+    optimizer = torch.optim.Adam(net.parameters(), lr=lr)
     best_loss = np.inf
 
     # duration = []
@@ -203,15 +209,15 @@ if __name__ == '__main__':
         if epoch == 0:
             continue
         else:
-            train_loss = process(net, train_data, optimizer=optimizer)
+            train_loss = process(net, train_files, optimizer=optimizer)
             log(f"TRAIN LOSS: {train_loss:0.3f}")
-        valid_loss = process(net, valid_data, None)
+        valid_loss = process(net, valid_files, None)
         log(f"VALID LOSS: {valid_loss:0.3f}")
 
         if valid_loss < best_loss:
             plateau_count = 0
             best_loss = valid_loss
-            net.save_state(os.path.join(running_dir, 'best_params.pkl'))
+            torch.save(net.state_dict(), os.path.join(running_dir, 'best_params.pkl'))
             log(f"  best model so far", logfile)
         else:
             plateau_count += 1
@@ -222,8 +228,8 @@ if __name__ == '__main__':
                 lr *= 0.2
                 log(f"  {plateau_count} epochs without improvement, decreasing learning rate to {lr}", logfile)
 
-    net.restore_state(os.path.join(running_dir, 'best_params.pkl'))
-    valid_loss = process(net, valid_data, None)
+    net.load_state_dict(torch.load(os.path.join(running_dir, 'best_params.pkl')))
+    valid_loss = process(net, valid_files, None)
     log(f"VALID LOSS: {valid_loss:0.3f}")
     #     for g in G:
     #         net.train()
