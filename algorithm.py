@@ -2,7 +2,9 @@ from sage.all import *
 import numpy as np
 # from generate_graph import random_connected_graph
 import random
-
+import dgl
+import torch
+import math
 def clusters(G, centers, weighted=True, as_dict=False):
     if not as_dict:
         clusts = [0] * G.order()
@@ -120,8 +122,24 @@ def k_center_approximation(G, k=3, weighted=False, seed=None, distance=False):
     else:
         return [vertices[c] for c in C]
 
+def convert_to_DGLGraph(G, k=3, weighted=True):
+    if weighted:
+        nxgraph = G.networkx_graph(weight_function = lambda edge: float(edge[2]))
+    else:
+        nxgraph = G.networkx_graph(weight_function = lambda edge: float(1))
+    dgl_G = dgl.DGLGraph()
+    dgl_G.from_networkx(nxgraph, edge_attrs=['weight'])
+    centers, distance = k_center(G, k=k, distance=True)
+    # centers, distance = k_center_approximation(G, k=k, distance=True)
+    centers = [int(c) for c in centers]
+    labels = torch.LongTensor([int(1) if node in centers else int(0) for node in G.vertices()])
+    mask = torch.BoolTensor([True for _ in range(len(labels))])
+    clusts = clusters(G, centers, weighted=weighted)
+    return dgl_G, centers, labels, mask, clusts
+
 if __name__ == '__main__':
-    g = random_connected_graph(50, 0.4, seed=2020)
+    print('No error...')
+#     g = random_connected_graph(50, 0.4, seed=2020)
 #     c = clusters(g, k_center_approximation(g, k=9, distance=False), weighted=True, as_dict=True)
 #     g.weighted(True)
 #

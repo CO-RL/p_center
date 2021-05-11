@@ -34,25 +34,30 @@ def convert_to_DGLGraph(G, k=3, weighted=True):
     clusts = clusters(G, centers, weighted=weighted)
     return dgl_G, centers, labels, mask, clusts
 
+
 def read_graph(filename):
     with open(filename, 'rb') as f:
-        G = pickle.load(f)
-    return G
+        G, features = pickle.load(f)
+    return G, features
 def process(model, dataloader, optimizer=None):
     mean_loss = 0
     mean_acc = np.zeros(1)
     n_samples_processed = len(dataloader)
     for batch in dataloader:
         clusts = []
-        G = read_graph(batch)
-        feature = extract_features(G, dim=30, weighted=True)
+        G, features= read_graph(batch)
+        # feature = extract_features(G, dim=30, weighted=True)
         g, c, l, m, clsts = convert_to_DGLGraph(G, k=k, weighted=True)
         clusts.append(torch.LongTensor(clsts))
 
         if optimizer:
-            logits = model(g, feature)
+            logits = model(g, features)
             logp = F.log_softmax(logits, 1)
             loss = F.nll_loss(logp, clusts[0])
+            # values, indices = logp.topk(1, dim=1, largest=True, sorted=True)
+            _, indices = logp.max(dim=1, keepdim=True)
+            acc = [int(a, b) for a,b in zip(indices, clusts[0])]
+            acc_pre = acc
 
             optimizer.zero_grad()
             loss.backward()
