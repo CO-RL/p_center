@@ -6,6 +6,8 @@ import math
 import os
 import glob
 from dgl.data.utils import save_graphs
+import utilities
+import argparse
 
 def extract_features(G, dim=10, weighted=True):
     features = np.zeros((G.order(), dim))
@@ -24,7 +26,7 @@ def read_graph(filename):
         G = pickle.load(f)
     return G
 
-def generate_samples(filepath, k, out_dir, dim):
+def generate_samples(filepath, k, out_dir, dim, n_samples):
     print(f"generating samples from {out_dir}")
     i = 0
     for file in filepath:
@@ -41,22 +43,53 @@ def generate_samples(filepath, k, out_dir, dim):
         #     pickle.dump(data, f)
         # f.close()
         i +=1
+        print(f"{i} / {n_samples} samples written.")
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        'problem',
+        help='center numbers',
+        choices=['2_center', '6_center', '10_center'],
+    )
+    parser.add_argument(
+        '-s', '--seed',
+        help='Random generator seed.',
+        type=utilities.valid_seed,
+        default=0,
+    )
+    parser.add_argument(
+        '-j', '--njobs',
+        help='Number of parallel jobs.',
+        type=int,
+        default=1,
+    )
+    args = parser.parse_args()
+    print(f"seed {args.seed}")
 
-    train_size = 30
-    valid_size = 10
-    test_size = 10
-    transfer_size = 5
+    train_size = 1000
+    valid_size = 300
+    test_size = 300
 
-    instances_train = glob.glob('data/graph/p_center/train/*.pkl')
-    instances_valid = glob.glob('data/graph/p_center/valid/*.pkl')
-    instances_test = glob.glob('data/graph/p_center/test/*.pkl')
-    # instances_transfer = glob.glob('data/graph/p_center/transfer/*.lp')
-    out_dir = 'data/samples/p_center'
+    if args.problem == '2_center':
+        k = 2
+        instances_train = glob.glob('data/graph/p_center/train/*.pkl')
+        instances_valid = glob.glob('data/graph/p_center/valid/*.pkl')
+        instances_test = glob.glob('data/graph/p_center/test/*.pkl')
+        out_dir = 'data/samples/2_center'
+    elif args.problem == '6_center':
+        k = 6
+        instances_train = glob.glob('data/graph/p_center/train/*.pkl')
+        instances_valid = glob.glob('data/graph/p_center/valid/*.pkl')
+        instances_test = glob.glob('data/graph/p_center/test/*.pkl')
+        out_dir = 'data/samples/6_center'
+    if args.problem == '10_center':
+        k = 10
+        instances_train = glob.glob('data/graph/p_center/train/*.pkl')
+        instances_valid = glob.glob('data/graph/p_center/valid/*.pkl')
+        instances_test = glob.glob('data/graph/p_center/test/*.pkl')
+        out_dir = 'data/samples/10_center'
 
-    #
-    out_dir = 'data/samples/p_center'
     train_dir = out_dir + '/train'
     valid_dir = out_dir + '/valid'
     test_dir = out_dir + '/test'
@@ -70,6 +103,6 @@ if __name__ == '__main__':
     os.makedirs(test_dir)
     # os.makedir(transfer_dir)
 
-    generate_samples(filepath=instances_train, k=2, out_dir=train_dir, dim=30)
-    generate_samples(filepath=instances_valid, k=2, out_dir=valid_dir, dim=30)
-    generate_samples(filepath=instances_valid, k=2, out_dir=test_dir, dim=30)
+    generate_samples(filepath=instances_train, k=k, out_dir=train_dir, dim=30, n_samples=train_size)
+    generate_samples(filepath=instances_valid, k=k, out_dir=valid_dir, dim=30, n_samples=valid_size)
+    generate_samples(filepath=instances_valid, k=k, out_dir=test_dir, dim=30, n_samples=test_size)
