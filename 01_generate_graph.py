@@ -7,6 +7,8 @@ from algorithm import k_center
 import matplotlib.pyplot as plt
 import pickle
 import os
+import argparse
+
 def random_connected_graph(n, p, seed=None, weighted=True):
     '''
         n - number of vertices
@@ -35,50 +37,24 @@ def generate_graph(datasize, n ,p, out_dir):
         f.close()
 
 if __name__ == '__main__':
-    train_size = 30
-    valid_size = 10
-    test_size = 10
-    # transfer_size = 5
-    #
-    out_dir = 'data/graph/p_center'
-    train_dir = out_dir + '/train'
-    valid_dir = out_dir + '/valid'
-    test_dir = out_dir + '/test'
-    # transfer_dir = out_dir + '/transfer'
-    print(f"{train_size} graph in {train_dir}")
-    print(f"{valid_size} graph in {valid_dir}")
-    print(f"{test_size} graph in {test_dir}")
-    # print(f"{transfer_size} samples in {transfer_dir}")
-    os.makedirs(train_dir)
-    os.makedirs(valid_dir)
-    os.makedirs(test_dir)
-    # os.makedir(transfer_dir)
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-nn', '--nnodes',
+        help='nodes numbers',
+        choices=['50', '100', '200', '500', '1000'],
+        default=50,
+    )
+    parser.add_argument(
+        '-nc', '--ncenter',
+        help='center numbers',
+        choices=['3', '6', '10'],
+        default=3,
+    )
+    args = parser.parse_args()
 
-    generate_graph(datasize=train_size, n=50, p=0.4, out_dir=train_dir)
+    ngraph = 10
+    out_dir = f"data/graph/{args.ncenter}_center/{args.nnodes}"
+    os.makedirs(out_dir)
 
-    generate_graph(datasize=valid_size, n=50, p=0.4, out_dir=valid_dir)
+    generate_graph(datasize=ngraph, n=args.nnodes, p=0.4, out_dir=out_dir)
 
-    generate_graph(datasize=test_size, n=50, p=0.4, out_dir=test_dir)
-
-
-    # G = [random_connected_graph(50, 0.4, weighted=True) for _ in range(1)]
-    #
-    #
-    # with open("./data/sample.pkl", 'wb') as f:
-    #     pickle.dump(G, f)
-    # #
-    # with open('./data/sample.pkl', 'rb') as f:
-    #     K = pickle.load(f)
-    # print(K)
-    #画图 计算距离
-    # g = G[0]
-    # g.weighted(True)
-    # centers, dist = k_center(g, k=3, distance=True)
-    # p_exact = g.plot(layout='circular', vertex_colors={'red': centers}, vertex_labels=False, edge_labels=True)
-    # print("Exact solution")
-    # print('Maximum distance to any point:' + str(dist));
-    # print('\n')
-    # p_exact.show(figsize=15)
-
-    # features = [extract_features(graph, dim=30, weighted=True) for graph in G]
-    # print(G[0])

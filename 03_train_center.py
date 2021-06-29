@@ -8,13 +8,24 @@ import pathlib
 import sys
 import importlib
 import pickle
-import torch.utils.data as Data
 import matplotlib.pyplot as plt
-import dgl
-from dgl.data.utils import load_labels
 from dgl.data.utils import load_graphs
 import argparse
+import time
 
+def remove_file(path):
+    for i in os.listdir(path):
+        path_file = os.path.join(path, i)
+        if os.path.isfile(path_file):
+            os.remove(path_file)
+        else:
+            remove_file(path_file)
+
+def check_path_exist(path):
+    if os.path.exists(path):
+        remove_file(path)
+    else:
+        os.makedirs(path)
 
 def read_graph(filename):
     graph_path = "/".join(filename.split(".")[0:-1]) + ".bin"
@@ -25,7 +36,6 @@ def read_graph(filename):
     #     data = pickle.load(f)
     return (graph, data)
 
-
 # 返回一个0,1数组中1的数量
 def num_one(source_array):
     count = 0
@@ -34,8 +44,7 @@ def num_one(source_array):
             count += 1
     return count
 
-
-def load_data(dataloader, batch_size=6):
+def load_data(dataloader):
     graph_datasets = []
     datasets = []
     for data in dataloader:
@@ -43,70 +52,35 @@ def load_data(dataloader, batch_size=6):
         graph, data = dataset
         graph_datasets.append(graph)
         datasets.append(data)
-    # graph_loader = Data.DataLoader(
-    #     dataset=datasets,
-    #     batch_size=batch_size,
-    #     shuffle=True,
-    #     num_workers=2,
-    # )
+
     return (graph_datasets, datasets)
 
-
-def process(model, dataloader, optimizer=None):
-    graph_datasets, datasets = dataloader
-    mean_loss = 0
-    mean_acc = 0
-    for step in range(len(dataloader[0])):
-        g, data_ = graph_datasets[step][0][0], datasets[step]
-        feature, c, l, m, clsts = data_
-        # if weighted:
-        #     nxgraph = G.networkx_graph(weight_function=lambda edge: float(edge[2]))
-        # else:
-        #     nxgraph = G.networkx_graph(weight_function=lambda edge: float(1))
-        # g = dgl.DGLGraph()
-        # g.from_networkx(nxgraph, edge_attrs=['weight'])
-
-        if optimizer:
-            logits = model(g, feature)
-            logp = F.log_softmax(logits, 1)
-            loss = F.nll_loss(logp, torch.LongTensor(clsts))
-
-            _, indices = torch.max(logp, dim=1)
-            correct = torch.sum(indices == clsts)
-            acc = correct.item()*1.0/len(clsts)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-        else:
-            logits = model(g, feature)
-            logp = F.log_softmax(logits, 1)
-            loss = F.nll_loss(logp, torch.LongTensor(clsts))
-
-            _, indices = torch.max(logp, dim=1)
-            correct = torch.sum(indices == clsts)
-            acc = correct.item()*1.0/len(clsts)
-
-    mean_loss += loss
-    mean_acc += acc
-
-    mean_loss /= step
-    mean_acc /= step
-    return mean_loss, mean_acc
-
+def plot_loss(loss):
+    plt.plot([*range(len(loss))], loss)
+    plt.title("Clustering-Based GNN Loss for n=50, k=3 ")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.show()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        'problem',
+        '-nn', '--nnodes',
+        help='nodes numbers',
+        choices=['50', '100', '200', '500', '1000'],
+        default=50,
+    )
+    parser.add_argument(
+        '-nc', '--ncenter',
         help='center numbers',
-        choices=['2_center', '6_center', '10_center'],
+        choices=['3', '6', '10'],
+        default=3,
     )
     parser.add_argument(
         '-m', '--model',
         help='GNN model to be trained.',
         type=str,
-        default='GCN',
+        default='GAT',
         choices=['GCN', 'GAT', 'GraphSAGE']
     )
     parser.add_argument(
@@ -115,53 +89,37 @@ if __name__ == '__main__':
         type=utilities.valid_seed,
         default=0,
     )
-    # parser.add_argument(
-    #     '-g', '--gpu',
-    #     help='CUDA GPU id (-1 for CPU).',
-    #     type=int,
-    #     default=0,
-    # )
+    parser.add_argument(
+        '-g', '--gpu',
+        help='CUDA GPU id (-1 for CPU).',
+        type=int,
+        default=0,
+    )
     args = parser.parse_args()
+
     ### HYPER PARAMETERS ###
-    max_epochs = 1000
+    max_epochs = 10000
     batch_size = 1
     lr = 0.01
-    patience = 10
-    early_stopping = 20
+    patience = 100
+    early_stopping = 1000
     best_loss = np.inf
+    k = args.ncenter
 
-    problem_folders = {
-        '2_center': '2_center',
-        '6_center': '6_center',
-        '10_center': '10_center',
-    }
-    problem_folder = problem_folders[args.problem]
-    running_dir = f"trained_models/{args.problem}/{args.model}/{args.seed}"
-    os.makedirs(running_dir)
-    if args.problem == '2_center':
-        k = 2
-    elif args.problem == '6_center':
-        k = 6
-    elif args.problem == '10_center':
-        k = 10
-
-    ### LOG ###
-    logfile = os.path.join(running_dir, 'log.txt')
-    log(f"max_epochs: {max_epochs}", logfile)
-    log(f"batch_size: {batch_size}", logfile)
-    log(f"lr: {lr}", logfile)
-    log(f"patience : {patience }", logfile)
-    log(f"early_stopping : {early_stopping }", logfile)
+    # ### LOG ###
+    # logfile = os.path.join(running_dir, 'log.txt')
+    # log(f"max_epochs: {max_epochs}", logfile)
+    # log(f"batch_size: {batch_size}", logfile)
+    # log(f"lr: {lr}", logfile)
+    # log(f"patience : {patience }", logfile)
+    # log(f"early_stopping : {early_stopping }", logfile)
 
     ### SET-UP DATASET ###
-    train_files = list(pathlib.Path(f'data/samples/{problem_folder}/train').glob('sample_*.pkl'))
-    valid_files = list(pathlib.Path(f'data/samples/{problem_folder}/valid').glob('sample_*.pkl'))
+    sample_files = list(pathlib.Path(f'data/samples/{args.ncenter}_center/{args.nnodes}').glob('sample_*.pkl'))
 
-    train_files = [str(x) for x in train_files]
-    valid_files = [str(x) for x in valid_files]
+    sample_files = [str(x) for x in sample_files]
 
-    train_loader = load_data(train_files)
-    valid_loader = load_data(valid_files)
+    samples = load_data(sample_files)
 
     ### MODEL LOADING ###
     sys.path.insert(0, os.path.abspath(f'models/{args.model}'))
@@ -170,68 +128,98 @@ if __name__ == '__main__':
     importlib.reload(model)
     if args.model == 'GAT':
         net = model.GAT(in_dim=30,
-                        hidden_dim=50 * 2,
-                        out_dim=50,
+                        hidden_dim=k*5,
+                        out_dim=k,
                         num_heads=5)
     elif args.model == 'GCN':
         net = model.GCN(in_dim=30,
-                        hidden_dim=50 * 2,
-                        out_dim=50)
+                        hidden_dim=k*5,
+                        out_dim=k)
     elif args.model == 'GraphSAGE':
         net = model.GraphSAGE(in_feats=30,
-                              n_hidden=50 * 2,
-                              n_classes=50,
+                              n_hidden=k*5,
+                              n_classes=k,
                               n_layers=1,
                               activation=F.relu,
                               dropout=True,
                               aggregator_type='mean')
     else:
         raise NotImplementedError
+
     del sys.path[0]
 
     ### TRAINING LOOP ###
     optimizer = torch.optim.Adam(net.parameters(), lr=lr)
-    best_loss = np.inf
-    train_losses = []
-    train_accs = []
 
-    valid_losses = []
-    valid_accs = []
-    for epoch in range(max_epochs + 1):
-        log(f"EPOCH {epoch}...", logfile)
-        # if epoch == 0:
-        #     print("pretrain...")
-        # else:
-        train_loss, train_acc = process(net, train_loader, optimizer=optimizer)
-        log(f"TRAIN LOSS: {train_loss:0.3f}" + "".join(f" acc: {train_acc:0.3f}"), logfile)
-        train_losses.append(train_loss)
-        train_accs.append(train_acc)
 
-        valid_loss, valid_acc = process(net, valid_loader, None)
-        log(f"VALID LOSS: {valid_loss:0.3f}" + "".join(f" acc: {valid_acc:0.3f}"), logfile)
-        valid_losses.append(valid_loss)
-        valid_accs.append(valid_acc)
+    for step in range(len(samples[0])):
+        best_loss = np.inf
+        train_losses = []
+        train_accs = []
 
-        if valid_loss < best_loss:
-            plateau_count = 0
-            best_loss = valid_loss
-            torch.save(net.state_dict(), os.path.join(running_dir, 'best_params.pkl'))
-            log(f"  best model so far", logfile)
-        else:
-            plateau_count += 1
-            if plateau_count % early_stopping == 0:
-                log(f"  {plateau_count} epochs without improvement, early stopping", logfile)
-                break
-            if plateau_count % patience == 0:
-                lr *= 0.2
-                log(f"  {plateau_count} epochs without improvement, decreasing learning rate to {lr}", logfile)
+        running_dir = f"trained_models/p_center/{args.nnodes}_{args.ncenter}/{step+1}/{args.model}"
+        check_path_exist(running_dir)
+        logfile = os.path.join(running_dir, 'log.txt')
 
-    net.load_state_dict(torch.load(os.path.join(running_dir, 'best_params.pkl')))
-    valid_loss, valid_acc = process(net, valid_files, None)
-    log(f"VALID LOSS: {valid_loss:0.3f}" + "".join(f" acc: {valid_acc:0.3f}"), logfile)
+        graph_datasets, datasets = samples
+        graph_dataset = graph_datasets[step]
+        dataset = datasets[step]
+        duration = []
+        losses = []
+        accs = []
 
-    # plt.plot([*range(len(train_losses))], train_losses)
-    # plt.title("Clustering-Based GNN Loss for k=2")
-    # plt.xlabel("Epoch")
-    # plt.ylabel("Loss")
-    # plt.show()
+        g, data_ = graph_dataset[0][0], dataset
+        feature, c, l, m, clsts = data_
+        from torch.autograd import Variable
+        feature = Variable(feature)
+        clsts = Variable(torch.LongTensor(clsts))
+
+        for epoch in range(max_epochs + 1):
+
+
+            if epoch >= 3:
+                t0 = time.time()
+
+            logits = net(g, feature)
+            logp = F.log_softmax(logits, 1)
+            loss = F.nll_loss(logp, clsts)
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            _, indices = torch.max(logp, dim=1)
+            correct = torch.sum(indices == clsts)
+            acc = correct.item() * 1.0 / len(clsts)
+
+            if epoch >= 3:
+                duration.append(time.time() - t0)
+                losses.append(loss.item())
+                accs.append(acc)
+
+            print("Epoch {:05d} | Loss {:.4f} | Time(s) {:.4f} | Acc(%) {:.4f}".format(
+                epoch, loss.item(), np.mean(duration), np.mean(acc)))
+
+            if loss.item() < best_loss:
+                plateau_count = 0
+                best_loss = loss.item()
+                torch.save(net.state_dict(), os.path.join(running_dir, 'best_params.pkl'))
+                log(f"  best model so far", logfile)
+            else:
+                plateau_count += 1
+                if plateau_count % early_stopping == 0:
+                    log(f"  {plateau_count} epochs without improvement, early stopping", logfile)
+                    break
+                if plateau_count % patience == 0:
+                    lr *= 0.2
+                    log(f"  {plateau_count} epochs without improvement, decreasing learning rate to {lr}", logfile)
+        plot_loss(losses)
+        net.load_state_dict(torch.load(os.path.join(running_dir, 'best_params.pkl')))
+        logits = net(g, feature)
+        logp = F.log_softmax(logits, 1)
+        loss = F.nll_loss(logp, clsts)
+
+        _, indices = torch.max(logp, dim=1)
+        correct = torch.sum(indices == clsts)
+        acc = correct.item() * 1.0 / len(clsts)
+        log(f"Best loss: {loss:0.3f}" + "".join(f" Acc: {acc:0.3f}"), logfile)
