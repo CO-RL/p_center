@@ -125,11 +125,9 @@ if __name__ == '__main__':
     k = args.ncenter
     num_cluster_iter = 1
     ### SET-UP DATASET ###
-    sample_files = list(pathlib.Path(f'data/samples/{args.ncenter}_center/{args.nnodes}').glob('sample_*.pkl'))
-
-    sample_files = [str(x) for x in sample_files]
-
-    samples = load_data(sample_files)
+    sample_files = f'data/samples/{args.ncenter}_center/{arg.nnodes}/sample_1.pkl'
+    sample_num = 1
+    samples = read_graph(sample_files)
 
     ### MODEL LOADING ###
     model_cluster = GCNClusterNet(nfeat=30,
@@ -141,62 +139,57 @@ if __name__ == '__main__':
 
     optimizer = torch.optim.Adam(model_cluster.parameters(), lr=lr)
 
+    losses = []
 
-    for step in range(len(samples[0])):
-        losses = []
+    running_dir = f"trained_models/p_center/{args.nnodes}_{args.ncenter}/{sample_num}/clusternet"
+    check_path_exist(running_dir)
+    logfile = os.path.join(running_dir, 'log.txt')
 
-        running_dir = f"trained_models/p_center/{args.nnodes}_{args.ncenter}/{step+1}/clusternet"
-        check_path_exist(running_dir)
-        logfile = os.path.join(running_dir, 'log.txt')
+    graph_dataset, dataset = samples
+    g, data_ = graph_dataset[0][0], dataset
+    feature, c, l, m, clsts = data_
+    G = g.to_networkx(node_attrs=['x'], edge_attrs=['weight'])
+    adj = nx.adjacency_matrix(G, weight='weight')
+    adj = adj.coalesce()
+    bin_adj = (adj.to_dense() > 0).float()
 
-        graph_datasets, datasets = samples
-        graph_dataset = graph_datasets[step]
-        dataset = datasets[step]
+    dist_all = make_all_dists(bin_adj, 100, use_weights=True)
+    diameter = dist_all[dist_all < 100].max()
+    dist_all[dist_all == 100] = diameter
 
-        g, data_ = graph_dataset[0][0], dataset
-        feature, c, l, m, clsts = data_
-        G = g.to_networkx(node_attrs=['x'], edge_attrs=['weight'])
-        adj = nx.adjacency_matrix(G, weight='weight')
-        adj = adj.coalesce()
-        bin_adj = (adj.to_dense() > 0).float()
+    object = CenterObjective(dist_all, diameter, 0)
 
-        dist_all = make_all_dists(bin_adj, 100, use_weights=True)
-        diameter = dist_all[dist_all < 100].max()
-        dist_all[dist_all == 100] = diameter
-
-        object = CenterObjective(dist_all, diameter, 0)
-
-        from torch.autograd import Variable
-        feature = Variable(feature)
+    from torch.autograd import Variable
+    feature = Variable(feature)
 
 
-        for epoch in range(max_epochs + 1):
+    for epoch in range(max_epochs + 1):
 
-            mu, r, embeds, dist = model_cluster(feature, adj, num_cluster_iter)
-            loss = loss_kcenter(mu, r, embeds, dist, bin_adj, object, args)
-            loss = -loss
-            optimizer.zero_grad()
-            loss.backward()
+        mu, r, embeds, dist = model_cluster(feature, adj, num_cluster_iter)
+        loss = loss_kcenter(mu, r, embeds, dist, bin_adj, object, args)
+        loss = -loss
+        optimizer.zero_grad()
+        loss.backward()
 
-            if step == 500:
-                num_cluster_iter = 5
-            if step % 100 == 0:
-                # round solution to discrete partitioning
-                # evalaute test loss -- note that the best solution is
-                # chosen with respect training loss. Here, we store the test loss
-                # of the currently best training solution
-                loss_test = loss_kcenter(mu, r, embeds, dist, bin_adj, object, args)
-                # for k-center problem, keep track of the fractional x with best
-                # training loss, to do rounding after
-                if loss.item() < best_train_val:
-                    best_train_val = loss.item()
-                    curr_test_loss = loss_test.item()
-                    # convert distances into a feasible (fractional x)
-                    x_best = torch.softmax(dist * args.kcentertemp, 0).sum(dim=1)
-                    x_best = 2 * (torch.sigmoid(4 * x_best) - 0.5)
-                    if x_best.sum() > k:
-                        x_best = k * x_best / x_best.sum()
-            losses.append(loss.item())
-            optimizer.step()
+        if step == 500:
+            num_cluster_iter = 5
+        if step % 100 == 0:
+            # round solution to discrete partitioning
+            # evalaute test loss -- note that the best solution is
+            # chosen with respect training loss. Here, we store the test loss
+            # of the currently best training solution
+            loss_test = loss_kcenter(mu, r, embeds, dist, bin_adj, object, args)
+            # for k-center problem, keep track of the fractional x with best
+            # training loss, to do rounding after
+            if loss.item() < best_train_val:
+                best_train_val = loss.item()
+                curr_test_loss = loss_test.item()
+                # convert distances into a feasible (fractional x)
+                x_best = torch.softmax(dist * args.kcentertemp, 0).sum(dim=1)
+                x_best = 2 * (torch.sigmoid(4 * x_best) - 0.5)
+                if x_best.sum() > k:
+                    x_best = k * x_best / x_best.sum()
+        losses.append(loss.item())
+        optimizer.step()
 
-        print('ClusterNet value', x_best)
+    print('ClusterNet value', x_best)
