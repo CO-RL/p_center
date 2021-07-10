@@ -87,7 +87,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     ### HYPER PARAMETERS ###
-    max_epochs = 10000
+    max_epochs = 1000
     batch_size = 1
     lr = 0.01
     patience = 100
@@ -104,8 +104,8 @@ if __name__ == '__main__':
     # log(f"early_stopping : {early_stopping }", logfile)
 
     ### SET-UP DATASET ###
-    sample_files = f'data/samples/{args.ncenter}_center/{arg.nnodes}/sample_1.pkl'
     sample_num = 1
+    sample_files = f'data/samples/{args.ncenter}_center/{args.nnodes}/sample_{sample_num}.pkl'
     samples = read_graph(sample_files)
 
     ### MODEL LOADING ###
@@ -197,7 +197,7 @@ if __name__ == '__main__':
             if plateau_count % patience == 0:
                 lr *= 0.2
                 log(f"  {plateau_count} epochs without improvement, decreasing learning rate to {lr}", logfile)
-    plot_loss(losses)
+    # plt.plot(losses)
     net.load_state_dict(torch.load(os.path.join(running_dir, 'best_params.pkl')))
     logits = net(g, feature)
     logp = F.log_softmax(logits, 1)

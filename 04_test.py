@@ -77,8 +77,8 @@ if __name__ == '__main__':
 ##################################################################
 ####LOAD_DATA
 ##################################################################
-    sample_file = f'data/samples/{args.ncenter}_center/{args.nnodes}/sample_1.pkl'
     sample_num = 1
+    sample_file = f'data/samples/{args.ncenter}_center/{args.nnodes}/sample_{sample_num}.pkl'
     samples = read_graph(sample_file)
 
 ###################################################################
@@ -128,7 +128,7 @@ if __name__ == '__main__':
     acc = correct.item() * 1.0 / len(clsts)
 
     if args.ncenter == 3:
-        subg = []
+        subg = [[],[],[]]
         s = 0
         for i in indices:
             if i == 0:
@@ -163,15 +163,15 @@ if __name__ == '__main__':
                 subg[5].append(s)
                 s += 1
 
-    G = []
-    centers = []
-    dists = []
+    G = [[],[],[]]
+    centers = [[],[],[]]
+    dists = [[],[],[]]
     for i in range(k):
         G[i] = g.subgraph(subg[i])
         G[i].ndata['x'] = g.ndata['z'][G[i].parent_nid]
         G[i].edata['weight'] = g.edata['weight'][G[i].parent_eid]
         G[i].edata['e'] = g.edata['e'][G[i].parent_eid]
-        centers[i], dists[i] = cal_center(G[0], distance=True)
+        centers[i], dists[i] = cal_center(G[i], distance=True)
     dist = max(dists)
     print(dists)
     print(centers)
