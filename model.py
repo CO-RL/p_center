@@ -1,9 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from dgl.nn import SAGEConv
-import dgl.function as fn
-#GAT
+
 class GATLayer(nn.Module):
     def __init__(self, in_dim, out_dim):
         super(GATLayer, self).__init__()
@@ -79,65 +77,4 @@ class GAT(nn.Module):
         h = self.layer1(g, h)
         h = F.elu(h)
         h = self.layer2(g, h)
-        return h
-
-
-#GCN
-gcn_msg = fn.copy_u(u='h', out='m')
-gcn_reduce = fn.sum(msg='m', out='h')
-class GCNLayer(nn.Module):
-    def __init__(self, in_feats, out_feats):
-        super(GCNLayer, self).__init__()
-        self.linear = nn.Linear(in_feats, out_feats)
-
-    def forward(self, g, feature):
-        # Creating a local scope so that all the stored ndata and edata
-        # (such as the `'h'` ndata below) are automatically popped out
-        # when the scope exits.
-        with g.local_scope():
-            g.ndata['h'] = feature
-            g.update_all(gcn_msg, gcn_reduce)
-            h = g.ndata['h']
-            return self.linear(h)
-
-class GCN(nn.Module):
-    def __init__(self, in_dim, hidden_dim, out_dim):
-        super(GCN, self).__init__()
-        self.layer1 = GCNLayer(in_dim, hidden_dim)
-        self.layer2 = GCNLayer(hidden_dim, out_dim)
-
-    def forward(self, g, features):
-        x = F.relu(self.layer1(g, features))
-        x = self.layer2(g, x)
-        return x
-
-###GraphConv
-class GraphSAGE(nn.Module):
-    def __init__(self,
-                 # g,
-                 in_feats,
-                 n_hidden,
-                 n_classes,
-                 n_layers,
-                 activation,
-                 dropout,
-                 aggregator_type):
-        super(GraphSAGE, self).__init__()
-        self.layers = nn.ModuleList()
-        # self.g = g
-        # input layer
-        self.layers.append(SAGEConv(in_feats, n_hidden, aggregator_type,
-                                    feat_drop=dropout, activation=activation))
-        # hidden layers
-        for i in range(n_layers - 1):
-            self.layers.append(SAGEConv(n_hidden, n_hidden, aggregator_type,
-                                        feat_drop=dropout, activation=activation))
-        # output layer
-        self.layers.append(SAGEConv(n_hidden, n_classes, aggregator_type,
-                                    feat_drop=dropout, activation=None))  # activation None
-
-    def forward(self, g, features):
-        h = features
-        for layer in self.layers:
-            h = layer(g, h)
         return h
