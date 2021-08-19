@@ -1,11 +1,8 @@
 import pathlib
 import pickle
-import sys
 import importlib
 import torch
-import os
 import torch.nn.functional as F
-from algorithm import convert_to_DGLGraph
 import numpy as np
 import networkx as nx
 import argparse
@@ -28,29 +25,14 @@ def num_one(source_array):
             count += 1
     return count
 
-def cal_center(g, distance=False):
-    G = g.to_networkx(node_attrs=['x'], edge_attrs=['weight'])
-    try:
-        adj = nx.adjacency_matrix(G, weight='weight')
-    except:
-        print('The graph has no nodes.')
-    else:
-        dense_adj = adj.todense()
-        sums = np.max(dense_adj, axis=1)
-        min_index, min_dist = min(enumerate(sums), key=operator.itemgetter(1))
-        center = g.parent_nid[min_index-1].numpy().tolist()
-    if distance:
-        return center, min_dist[0,0]
-    else:
-        return min_dist
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '-nn', '--nnodes',
         help='nodes numbers',
-        choices=['50', '100', '200', '500', '1000'],
-        default=50,
+        choices=['100', '200', '500', '1000'],
+        default=100,
     )
     parser.add_argument(
         '-nc', '--ncenter',
@@ -62,7 +44,7 @@ if __name__ == '__main__':
         '-m', '--model',
         help='GNN model to be trained.',
         type=str,
-        default='GAT',
+        default='GCN',
         choices=['GCN', 'GAT', 'GraphSAGE']
     )
     parser.add_argument(
@@ -72,7 +54,7 @@ if __name__ == '__main__':
         default=0,
     )
     args = parser.parse_args()
-
+    n = args.nnodes
     k=args.ncenter
 ##################################################################
 ####LOAD_DATA
@@ -84,20 +66,20 @@ if __name__ == '__main__':
 ###################################################################
 ####IMPORT MODEL
 ####################################################################
-    sys.path.insert(0, os.path.abspath(f'models/{args.model}'))
+    sys.path.insert(0, os.path.abspath(f'model/{args.model}'))
     import model
     importlib.reload(model)
     if args.model == 'GAT':
-        net = model.GAT(in_dim=30,
+        net = model.GAT(in_dim=2,
                         hidden_dim=k*5,
                         out_dim=k,
                         num_heads=5)
     elif args.model == 'GCN':
-        net = model.GCN(in_dim=30,
+        net = model.GCN(in_dim=2,
                         hidden_dim=k*5,
                         out_dim=k)
     elif args.model == 'GraphSAGE':
-        net = model.GraphSAGE(in_feats=30,
+        net = model.GraphSAGE(in_feats=2,
                               n_hidden=k*5,
                               n_classes=k,
                               n_layers=1,
@@ -123,56 +105,33 @@ if __name__ == '__main__':
     logp = F.log_softmax(logits, 1)
     loss = F.nll_loss(logp, clsts)
 
-    _, indices = torch.max(logp, dim=1)
-    correct = torch.sum(indices == clsts)
-    acc = correct.item() * 1.0 / len(clsts)
+    _, indices = logp.max(dim=1, keepdim=True)  # 输出分类的结果
+    indices = indices.reshape(n)
+    indices = indices.detach().numpy()
+    indices = indices.tolist()
 
-    if args.ncenter == 3:
-        subg = [[],[],[]]
-        s = 0
-        for i in indices:
-            if i == 0:
-                subg[0].append(s)
-                s += 1
-            elif i == 1:
-                subg[1].append(s)
-                s += 1
-            elif i == 2:
-                subg[2].append(s)
-                s += 1
-    elif args.ncenter == 6:
-        subg = []
-        s = 0
-        for i in indices:
-            if i == 0:
-                subg[0].append(s)
-                s += 1
-            elif i == 1:
-                subg[1].append(s)
-                s += 1
-            elif i == 2:
-                subg[2].append(s)
-                s += 1
-            elif i == 3:
-                subg[3].append(s)
-                s += 1
-            elif i == 4:
-                subg[4].append(s)
-                s += 1
-            elif i == 5:
-                subg[5].append(s)
-                s += 1
+    def get_same_element_index(ob_list, word):
+        return [i for (i, v) in enumerate(ob_list) if v == word]
 
-    G = [[],[],[]]
-    centers = [[],[],[]]
-    dists = [[],[],[]]
+    v = []
     for i in range(k):
-        G[i] = g.subgraph(subg[i])
-        G[i].ndata['x'] = g.ndata['z'][G[i].parent_nid]
-        G[i].edata['weight'] = g.edata['weight'][G[i].parent_eid]
-        G[i].edata['e'] = g.edata['e'][G[i].parent_eid]
-        centers[i], dists[i] = cal_center(G[i], distance=True)
-    dist = max(dists)
-    print(dists)
-    print(centers)
-    print(dist)
+        a = get_same_element_index(indices, i)
+        v.append(a)
+    G = []
+    for i in range(k):
+        G.append(g.subgraph(v[i]))
+    center = []
+    for j in range(k):
+        c = G[j].center(by_weight=True)
+        center.append(c[0])
+    dist = []
+    for i in range(k):
+        dists = []
+        for j in v[i]:
+            dists.append(g.distance(center[i], j, by_weight=True))
+        dist.append(np.max(dists))
+    minmax_dist = np.max(dist)
+    print("GCN solution")
+    print('Centers:', center)
+    print('Maximum distance to any point:' + str(minmax_dist));
+    print('\n')

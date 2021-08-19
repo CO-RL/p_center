@@ -56,8 +56,8 @@ if __name__ == '__main__':
     parser.add_argument(
         '-nn', '--nnodes',
         help='nodes numbers',
-        choices=['50', '100', '200', '500', '1000'],
-        default=50,
+        choices=['100', '200', '500', '1000'],
+        default=100,
     )
     parser.add_argument(
         '-nc', '--ncenter',
@@ -69,7 +69,7 @@ if __name__ == '__main__':
         '-m', '--model',
         help='GNN model to be trained.',
         type=str,
-        default='GAT',
+        default='GCN',
         choices=['GCN', 'GAT', 'GraphSAGE']
     )
     parser.add_argument(
@@ -84,10 +84,15 @@ if __name__ == '__main__':
         type=int,
         default=0,
     )
+    parser.add_argument(
+        '-num',
+        type=int,
+        default=1,
+    )
     args = parser.parse_args()
 
     ### HYPER PARAMETERS ###
-    max_epochs = 1000
+    max_epochs = 10000
     batch_size = 1
     lr = 0.01
     patience = 100
@@ -104,26 +109,26 @@ if __name__ == '__main__':
     # log(f"early_stopping : {early_stopping }", logfile)
 
     ### SET-UP DATASET ###
-    sample_num = 1
+    sample_num = args.num
     sample_files = f'data/samples/{args.ncenter}_center/{args.nnodes}/sample_{sample_num}.pkl'
     samples = read_graph(sample_files)
 
     ### MODEL LOADING ###
-    sys.path.insert(0, os.path.abspath(f'models/{args.model}'))
+    sys.path.insert(0, os.path.abspath(f'model/{args.model}'))
     import model
-
     importlib.reload(model)
+
     if args.model == 'GAT':
-        net = model.GAT(in_dim=30,
+        net = model.GAT(in_dim=2,
                         hidden_dim=k*5,
                         out_dim=k,
                         num_heads=5)
     elif args.model == 'GCN':
-        net = model.GCN(in_dim=30,
+        net = model.GCN(in_dim=2,
                         hidden_dim=k*5,
                         out_dim=k)
     elif args.model == 'GraphSAGE':
-        net = model.GraphSAGE(in_feats=30,
+        net = model.GraphSAGE(in_feats=2,
                               n_hidden=k*5,
                               n_classes=k,
                               n_layers=1,
@@ -132,9 +137,7 @@ if __name__ == '__main__':
                               aggregator_type='mean')
     else:
         raise NotImplementedError
-
     del sys.path[0]
-
     ### TRAINING LOOP ###
     optimizer = torch.optim.Adam(net.parameters(), lr=lr)
 
@@ -181,8 +184,9 @@ if __name__ == '__main__':
             losses.append(loss.item())
             accs.append(acc)
 
-        print("Epoch {:05d} | Loss {:.4f} | Time(s) {:.4f} | Acc(%) {:.4f}".format(
-            epoch, loss.item(), np.mean(duration), np.mean(acc)))
+        log(f"Epoch {epoch} | Loss {round(loss.item(),4) }| Time {round(np.mean(duration),4)} | Acc(%） {np.mean(acc)}", logfile)
+        # print("Epoch {:05d} | Loss {:.4f} | Time(s) {:.4f} | Acc(%) {:.4f}".format(
+        #     epoch, loss.item(), np.mean(duration), np.mean(acc)))
 
         if loss.item() < best_loss:
             plateau_count = 0

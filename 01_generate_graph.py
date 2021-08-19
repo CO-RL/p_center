@@ -41,18 +41,18 @@ if __name__ == '__main__':
     parser.add_argument(
         '-nn', '--nnodes',
         help='nodes numbers',
-        choices=['50', '100', '200', '500', '1000'],
-        default=50,
+        choices=['100', '200', '500', '1000'],
+        default=100,
     )
     parser.add_argument(
         '-nc', '--ncenter',
         help='center numbers',
-        choices=['3', '6', '10'],
-        default=3,
+        choices=['3', '5', '10'],
+        default=5,
     )
     args = parser.parse_args()
 
-    ngraph = 10
+    ngraph = 100
     out_dir = f"data/graph/{args.ncenter}_center/{args.nnodes}"
     os.makedirs(out_dir)
 
